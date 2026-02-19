@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Setup • Label App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}" />
+
+  <style>
+    body { margin: 24px; line-height: 1.35; }
+    form { max-width: 900px; }
+    fieldset { border: 1px solid #ddd; padding: 16px; margin: 16px 0; border-radius: 8px; }
+    legend { padding: 0 6px; color: #444; font-weight: 600; }
+    label { display: inline-flex; align-items: center; gap: 8px; margin: 8px 12px 8px 0; }
+    input[type="text"], input[type="number"], select { padding: 6px 8px; min-width: 160px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .muted { color: #666; font-size: 0.95em; }
+    .hidden { display: none; }
+    .hr { height: 1px; background: #eee; margin: 16px 0; }
+    ul.flash { list-style: none; padding: 0; }
+    ul.flash li { margin: 6px 0; }
+    ul.flash .success { color: #0a7; }
+    ul.flash .error { color: #b00; }
+  </style>
+</head>
+<body>
+  <h2 id="setTitle">Setup • Label Printing App</h2>
+
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <ul class="flash">
+        {% for cat,msg in messages %}
+          <li class="{{cat}}"><strong>{{cat|capitalize}}:</strong> {{msg}}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post" action="{{ url_for('setup_save') }}">
+    <!-- Backend -->
+    <fieldset>
+      <legend>Backend</legend>
+      <label>
+        Mode:
+        <select name="backend" id="backendSel">
+          <option value="brother_pt" {{ 'selected' if (backend|default('brother_pt'))=='brother_pt' else '' }}>
+            Brother P-touch Template (Bluetooth)
+          </option>
+          <option value="spooler" {{ 'selected' if (backend|default('brother_pt'))=='spooler' else '' }}>
+            Windows Spooler (legacy)
+          </option>
+        </select>
+      </label>
+      <span class="muted">Use P-touch for the TD-2120N over Bluetooth; no drivers required.</span>
+    </fieldset>
+
+    <!-- Brother / P-touch -->
+    <fieldset id="brotherBox">
+      <legend>Brother • P-touch Template</legend>
+
+      <div class="row">
+        <label>
+          COM Port:
+          <select id="comPortSel" name="com_port">
+            {% if com_port %}
+              <option value="{{ com_port }}" selected>{{ com_port }}</option>
+            {% else %}
+              <option value="">-- choose --</option>
+            {% endif %}
+          </select>
+        </label>
+
+        <button type="button" class="btn" id="btnListPorts">Refresh Ports</button>
+
+        <label title="Template number stored in the printer (01..99)">
+          Template #
+          <input type="number" min="1" max="99" name="template_num" value="{{ template_num|default(1, true) }}">
+        </label>
+
+        <label>
+          Mode:
+          <select name="mode" id="ptModeSel">
+            <option value="delimited" {{ 'selected' if (mode|default('named'))=='delimited' else '' }}>Delimited (quick test)</option>
+            <option value="named" {{ 'selected' if (mode|default('named'))=='named' else '' }}>Named Objects</option>
+          </select>
+        </label>
+
+        <label id="delimRow">
+          Delimiter:
+          <input type="text" name="delimiter" value="{{ delimiter|default(',', true) }}" maxlength="20" style="width:6ch">
+        </label>
+        
+        <label title="Cut after every N labels">
+          Cut every N:
+          <input type="number" min="1" max="99" name="cut_every" value="{{ cut_every|default(1, true) }}">
+        </label>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+
+      <div id="namedBox" class="{{ '' if (mode|default('named'))=='named' else 'hidden' }}">
+        <div class="hr"></div>
+        <div class="row">
+          <label>Item object name
+            <input type="text" name="obj_item" value="{{ obj_item|default('NAME', true) }}" maxlength="20">
+          </label>
+          <label>Pulled/Thawed object name
+            <input type="text" name="obj_pulled" value="{{ obj_pulled|default('PULLED', true) }}" maxlength="20">
+          </label>
+          <label>Expires object name
+            <input type="text" name="obj_expires" value="{{ obj_expires|default('EXPIRES', true) }}" maxlength="20">
+          </label>
+        </div>
+        <div class="muted">Set these in P-touch Editor → Object Properties → Name.</div>
+      </div>
+    </fieldset>
+
+    <!-- Legacy spooler (kept for completeness) -->
+    <fieldset id="spoolerBox" class="{{ '' if (backend|default('brother_pt'))=='spooler' else 'hidden' }}">
+      <legend>Windows Spooler (legacy)</legend>
+      <div class="row">
+        <label>Printer Name <input type="text" name="printerName" value="{{ printerName|default('', true) }}"></label>
+        <label>DPI <input type="number" name="dpi" value="{{ dpi|default('', true) }}"></label>
+        <label>Width (in) <input type="number" step="0.01" name="width_in" value="{{ width_in|default('', true) }}"></label>
+        <label>Height (in) <input type="number" step="0.01" name="height_in" value="{{ height_in|default('', true) }}"></label>
+      </div>
+    </fieldset>
+
+    <div>
+      <button class="btn set-but" type="button" onclick="location.href='/'">Labels</button>
+    </div>
+  </form>
+
+  <!-- Probe section -->
+  <fieldset style="margin-top:20px;">
+    <legend>Probe Print (quick test)</legend>
+    <div class="row">
+      <label>Item <input id="probeItem" type="text" value="Tomatoes - ON LINE"></label>
+      <label>Category <input id="probeCat" type="text" value="Criticals"></label>
+      <button id="probeBtn" class="btn">Probe Print</button>
+    </div>
+    <div class="muted">Uses current COM port, template #, and Delimited mode to print a one-off test label.</div>
+  </fieldset>
+
+  <script>
+    const backendSel = document.getElementById('backendSel');
+    const brotherBox = document.getElementById('brotherBox');
+    const spoolerBox = document.getElementById('spoolerBox');
+    const ptModeSel  = document.getElementById('ptModeSel');
+    const namedBox   = document.getElementById('namedBox');
+    const delimRow   = document.getElementById('delimRow');
+    const comPortSel = document.getElementById('comPortSel');
+    const btnList    = document.getElementById('btnListPorts');
+
+    function applyBackendUI(){
+      const b = backendSel.value;
+      brotherBox.classList.toggle('hidden', b !== 'brother_pt');
+      spoolerBox.classList.toggle('hidden', b !== 'spooler');
+    }
+    function applyPtModeUI(){
+      const m = ptModeSel.value;
+      namedBox.classList.toggle('hidden', m !== 'named');
+      delimRow.classList.toggle('hidden', m !== 'delimited');
+    }
+
+    backendSel.addEventListener('change', applyBackendUI);
+    ptModeSel.addEventListener('change', applyPtModeUI);
+    applyBackendUI(); applyPtModeUI();
+
+    async function listPorts(){
+      btnList.disabled = true;
+      btnList.textContent = 'Refreshing...';
+      try {
+        const r = await fetch('{{ url_for("api_serial_ports") }}');
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'Failed to fetch ports');
+        const current = '{{ com_port|default("", true)|e }}';
+        comPortSel.innerHTML = '';
+        if (d.ports.length === 0){
+          comPortSel.innerHTML = '<option value="">(no ports found)</option>';
+        } else {
+          d.ports.forEach((p, i) => {
+            const opt = document.createElement('option');
+            opt.value = p; opt.textContent = p;
+            if (p === current || (current === '' && i === d.preferred)) opt.selected = true;
+            comPortSel.appendChild(opt);
+          });
+        }
+      } catch (e){
+        alert('Error listing ports: ' + e.message);
+      } finally {
+        btnList.disabled = false;
+        btnList.textContent = 'Refresh Ports';
+      }
+    }
+    btnList.addEventListener('click', listPorts);
+
+    // auto-list on load (so the user sees options immediately)
+    listPorts().catch(()=>{});
+
+    // Probe
+    document.getElementById('probeBtn').addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      const payload = {
+        com_port: comPortSel.value,
+        template_num: Number(document.querySelector('input[name="template_num"]').value || 1),
+        item: document.getElementById('probeItem').value,
+        category: document.getElementById('probeCat').value
+      };
+      try {
+        const r = await fetch('{{ url_for("pt_probe") }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        alert(JSON.stringify(d, null, 2));
+      } catch (e){
+        alert('Probe failed: ' + e.message);
+      }
+    });
+  </script>
+</body>
+</html>

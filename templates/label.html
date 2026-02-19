@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Label App</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}" />
+  </head>
+  <body>
+<div class="four" id="title-animate-container" data-printed="{{ printed }}">
+  <h1 id="title-one" style="text-align:center">
+    <span>L</span><span>a</span><span>b</span><span>e</span><span>l</span>&nbsp;<span>P</span><span>r</span><span>i</span><span>n</span><span>t</span><span>i</span><span>n</span><span>g</span>&nbsp;<span>A</span><span>p</span><span>p</span>
+  </h1>
+</div>
+
+    <div
+      id="mobile-warning"
+      style="display:none;background:#ffcccc;color:#990000;font-weight:bold;padding:10px;margin:10px;text-align:center;"
+    >
+      Mobile devices are for viewing only. Printing is not available.
+    </div>
+
+    <div class="topbar">
+      <button class="btn set-but" type="button" onclick="location.href='/setup'">Setup</button>
+      <button class="btn tog-but" id="toggleLayoutBtn" type="button">Toggle Layout</button>
+    </div>
+
+    <form method="POST" id="labelForm">
+      <div class="quantity">
+        <label for="quantity">Quantity:</label>
+        <select name="quantity" id="quantity">
+          {% for i in range(1, 9) %}
+          <option value="{{ i }}">{{ i }}</option>
+          {% endfor %}
+        </select>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+          <span class="message {{ category }}">{{ message }}</span>
+          {% endfor %}
+        {% endif %}
+        {% endwith %}
+      </div>
+
+      <div class="button-container">
+        {% for category, items in items.items() %}
+        <div class="category catCon">
+          <h2>{{ category }}</h2>
+          <div class="buttons">
+            {% for item in items.keys()|sort %}
+            <button
+              class="btn label-btn glitch-btn"
+              type="submit"
+              name="item"
+              value="{{ category }}||{{ item }}"
+            >
+              {{ item }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <input type="hidden" id="hiddenComPort" name="comPort" value="{{ com_port or '' }}" />
+    </form>
+
+    <div class="check-row" style="text-align:center;margin-top:10px;">
+      <label>
+        <input type="checkbox" id="chk-glitch" />Glitch
+      </label>
+      <label>
+        <input type="checkbox" id="confettiToggle">Confetti
+      </label>
+      <label>
+        <input type="checkbox" id="splotchToggle">Splotches
+      </label>
+      <label>
+        <input type="checkbox" id="encourageToggle">Encouragement
+      </label>
+      <span id="credits">This app created by David Carioto</span>
+    </div>
+
+    <footer >
+    </footer>
+
+    <script>
+      setTimeout(() => {
+        const msg = document.querySelector('.message');
+        if (msg) msg.remove();
+      }, 5000);
+
+      function isMobileDevice() {
+        return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
+      window.onload = function () {
+        if (isMobileDevice()) {
+          document.getElementById('mobile-warning').style.display = 'block';
+        }
+      };
+    </script>
+
+    <script>
+  const body = document.body;
+  const btn = document.getElementById('toggleLayoutBtn');
+  const saved = localStorage.getItem('label_layout');
+  if (saved) body.className = saved;
+
+  btn.addEventListener('click', () => {
+    if (body.classList.contains('fixedLabelBut')) {
+      body.classList.remove('fixedLabelBut');
+      localStorage.setItem('label_layout', '');
+    } else {
+      body.classList.add('fixedLabelBut');
+      localStorage.setItem('label_layout', 'fixedLabelBut');
+    }
+  });
+
+  // ✅ Glitch toggle + persistence
+  const glitchCheckbox = document.getElementById('chk-glitch');
+  const GLITCH_KEY = 'glitch-enabled';
+
+  function applyGlitch(isOn) {
+    const targets = document.querySelectorAll('.glitch-btn');
+    targets.forEach((el) => {
+      el.classList.toggle('glitch', isOn);
+    });
+  }
+
+  if (glitchCheckbox) {
+    // Restore saved state
+    const savedGlitch = localStorage.getItem(GLITCH_KEY);
+    if (savedGlitch === '1') {
+      glitchCheckbox.checked = true;
+      applyGlitch(true);
+    }
+
+    // Save + apply on change
+    glitchCheckbox.addEventListener('change', () => {
+      const isOn = glitchCheckbox.checked;
+      localStorage.setItem(GLITCH_KEY, isOn ? '1' : '0');
+      applyGlitch(isOn);
+    });
+  }
+</script>
+
+   
+<script>
+  window.addEventListener('load', () => {
+    const animContainer = document.getElementById('title-animate-container');
+    if (!animContainer) return;
+
+    let isReload = false;
+    const navEntries = performance.getEntriesByType && performance.getEntriesByType('navigation');
+    if (navEntries && navEntries.length > 0) {
+      isReload = navEntries[0].type === 'reload';
+    } else if (performance.navigation) {
+      isReload = performance.navigation.type === 1;
+    }
+
+    const printedFlag = animContainer.dataset.printed === "True";
+
+    if (!printedFlag || isReload) {
+      animContainer.classList.add('animate');
+    }
+  });
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // ----------------------------
+    // Confetti toggle + storage
+    // ----------------------------
+    const confettiToggle = document.getElementById('confettiToggle');
+    const CONFETTI_KEY = 'confetti-enabled';
+
+    if (confettiToggle) {
+      const saved = localStorage.getItem(CONFETTI_KEY);
+      if (saved === '1') {
+        confettiToggle.checked = true;
+      }
+
+      confettiToggle.addEventListener('change', function () {
+        localStorage.setItem(CONFETTI_KEY, this.checked ? '1' : '0');
+      });
+    }
+
+    // ----------------------------
+    // Encouragement toggle + storage
+    // ----------------------------
+    const encourageToggle = document.getElementById('encourageToggle');
+    const ENCOURAGE_KEY = 'encourage-enabled';
+
+    if (encourageToggle) {
+      const savedEnc = localStorage.getItem(ENCOURAGE_KEY);
+      if (savedEnc === '1') {
+        encourageToggle.checked = true;
+      }
+
+      encourageToggle.addEventListener('change', function () {
+        localStorage.setItem(ENCOURAGE_KEY, this.checked ? '1' : '0');
+      });
+    }
+
+    // ----------------------------
+    // Encouragement popup
+    // ----------------------------
+    function showEncouragement(x, y) {
+      if (!encourageToggle || !encourageToggle.checked) return;
+
+      const messages = [
+        'Nice click!',
+        'Excellent Choice!',
+        '🤩 WOW 🤩',
+        'Aye Aye, Captain!',
+        'Boom 💥!',
+        'Approved ✔️',
+        '👏 Great Job 👏',
+        "High Five 🤚🏼!"
+      ];
+
+      const msg = messages[Math.floor(Math.random() * messages.length)];
+
+      const bubble = document.createElement('div');
+      bubble.className = 'encourage-pop';
+      bubble.textContent = msg;
+
+      bubble.style.left = x + 'px';
+      bubble.style.top = y + 'px';
+
+      document.body.appendChild(bubble);
+
+      setTimeout(() => {
+        bubble.remove();
+      }, 4500);
+    }
+
+    // ----------------------------
+    // Confetti particles (no toggle check here)
+    // ----------------------------
+    function triggerConfetti(x, y) {
+      const colors = ['#FF6B6B', '#FFE66D', '#4ECDC4', '#C7F464', '#9B5DE5', '#F54927', '#3FF527'];
+      const pieces = 30;
+
+      for (let i = 0; i < pieces; i++) {
+        const piece = document.createElement('span');
+        piece.className = 'confetti-piece';
+
+        const dx = (Math.random() * 2 - 1).toFixed(2); // -1..1
+        const dy = (Math.random() * 2 + 1).toFixed(2); // 1..3
+
+        piece.style.setProperty('--confetti-x', dx);
+        piece.style.setProperty('--confetti-y', dy);
+        piece.style.left = (x + (Math.random() * 40 - 20)) + 'px';
+        piece.style.top = (y + (Math.random() * 10 - 5)) + 'px';
+        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDelay = (Math.random() * 0.25) + 's';
+
+        document.body.appendChild(piece);
+
+        setTimeout(() => piece.remove(), 1200);
+      }
+    }
+
+    // ----------------------------
+    // Button click handler
+    // ----------------------------
+    const buttons = document.querySelectorAll('.label-btn, .btn');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', function (e) {
+        const rect = btn.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+
+        const form = btn.closest('form');
+        const isSubmitButton =
+          form && (btn.type === 'submit' || btn.getAttribute('type') === null);
+
+        const encourageOn = !!(encourageToggle && encourageToggle.checked);
+        const confettiOn  = !!(confettiToggle && confettiToggle.checked);
+
+        // -------- Non-form or non-submit buttons (like your toggle button) --------
+        if (!isSubmitButton) {
+          if (encourageOn) showEncouragement(x, y);
+          if (confettiOn)  triggerConfetti(x, y);
+          // no form submit to worry about
+          return;
+        }
+
+        // -------- Submit buttons (item buttons) --------
+
+        // If neither effect is on, just let the browser submit instantly
+        if (!encourageOn && !confettiOn) {
+          return; // default submit
+        }
+
+        // We have at least one effect turned on → delay the submit
+        e.preventDefault();
+
+        if (encourageOn) showEncouragement(x, y);
+        if (confettiOn)  triggerConfetti(x, y);
+
+        // Give animations time to show.
+        // You can shorten this if you want snappier submits.
+        const delay = confettiOn ? 1050 :800;
+
+        setTimeout(() => {
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit(btn); // preserves name="item"
+          } else {
+            form.submit();
+          }
+        }, delay);
+      });
+    });
+
+  });
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* ---------------------------------
+      RESTORE SPLOTCH TOGGLE STATE
+  ---------------------------------- */
+  const splotchToggle = document.getElementById('splotchToggle');
+  const SPLOTCH_KEY = 'splotches-enabled';
+
+  if (splotchToggle) {
+    const saved = localStorage.getItem(SPLOTCH_KEY);
+    if (saved === '1') splotchToggle.checked = true;
+
+    splotchToggle.addEventListener('change', function () {
+      localStorage.setItem(SPLOTCH_KEY, this.checked ? '1' : '0');
+      if (this.checked) startSplotches();
+    });
+  }
+
+  let splotchTimer = null;
+
+  function startSplotches() {
+    if (splotchTimer) return;
+
+    splotchTimer = setInterval(() => {
+      if (!splotchToggle.checked) {
+        clearInterval(splotchTimer);
+        splotchTimer = null;
+        return;
+      }
+      createSplotch();
+    }, 1000); // every 1 sec (changeable)
+  }
+
+function createSplotch() {
+  const blob = document.createElement('div');
+  blob.className = 'splotch';
+
+  // random base size
+  const baseSize = Math.random() * 120 + 80; // 80–200px
+  blob.style.width = baseSize + 'px';
+  blob.style.height = baseSize + 'px';
+
+  // colors become the "ink" via currentColor
+  const colors = [
+    '#ff6384',
+    '#36a2eb',
+    '#ffce56',
+    '#4bc0c0',
+    '#9966ff',
+    '#ff9f40'
+  ];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  blob.style.color = color;
+
+  // random position
+  blob.style.left = Math.random() * window.innerWidth + 'px';
+  blob.style.top = Math.random() * window.innerHeight + 'px';
+
+  // random rotation for variety
+  const rotation = Math.floor(Math.random() * 360) + 'deg';
+  blob.style.setProperty('--splotch-rotate', rotation);
+
+  document.body.appendChild(blob);
+
+  // clean up after animation
+  setTimeout(() => blob.remove(), 3000);
+}
+
+
+  // Auto-start if toggle was ON
+  if (splotchToggle && splotchToggle.checked) {
+    startSplotches();
+  }
+
+});
+</script>
+
+  </body>
+</html>

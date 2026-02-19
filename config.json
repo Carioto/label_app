@@ -1,0 +1,13 @@
+{
+  "backend": "brother_pt",
+  "com_port": "COM5",
+  "template_num": 1,
+  "pt_mode": "named",
+  "delimiter": ",",
+  "obj_names": {
+    "item": "NAME",
+    "pulled": "PULLED",
+    "expires": "EXPIRES"
+  },
+  "cut_every": 1
+}
